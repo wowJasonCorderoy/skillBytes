@@ -1,0 +1,98 @@
+// function listFolderContents() {
+//   var foldername = 'SkillBytes';
+//   var folderlisting = 'listing of folder ' + foldername;
+  
+//   var folders = DriveApp.getFoldersByName(foldername)
+//   var folder = folders.next();
+//   var contents = folder.getFiles();
+  
+//   var sheet_url="https://docs.google.com/spreadsheets/d/1lXwQPS2NYVa1C1WuUW-kYpVhIqBHs8njRrgo_aowSng/";
+//   var ss = SpreadsheetApp.openByUrl(sheet_url)
+      
+
+//   var sheet = ss.getActiveSheet();
+
+//   sheet.clear();
+//   sheet.appendRow( ['name', 'link','description','Date_Created'] );
+  
+//   var file;
+//   var name;
+//   var link;
+//   var description;
+//   var Date_Created;
+ 
+  
+  
+//   while(contents.hasNext()) {
+//     file = contents.next();
+//     name = file.getName();
+//     link = file.getUrl();
+//     description=file.getDescription();
+//     Date_Created=file.getDateCreated();
+
+
+   
+    
+//     sheet.appendRow( [name, link,description,Date_Created] );     
+//   }  
+// };
+
+function listFolderContents() {
+  var foldername = 'SkillBytes';
+  var folderlisting = 'listing of folder ' + foldername;
+  
+  var folders = DriveApp.getFoldersByName(foldername)
+  var folder = folders.next();
+  var contents = folder.getFiles();
+  
+  var sheet_url="https://docs.google.com/spreadsheets/d/1lXwQPS2NYVa1C1WuUW-kYpVhIqBHs8njRrgo_aowSng/";
+  var ss = SpreadsheetApp.openByUrl(sheet_url)
+      
+
+  var sheet = ss.getActiveSheet();
+
+  sheet.clear();
+  sheet.appendRow( ['id','name', 'hashtags','Date_Created', 'lvl'] );
+  
+  var file;
+  var name;
+  var link;
+  var description;
+  var Date_Created;
+  var id_;
+  var hashes_;
+  var hashes_str;
+  var lvl;
+ 
+  
+  
+  while(contents.hasNext()) {
+    file = contents.next();
+    name = file.getName();
+    link = file.getUrl();
+    name_link_formula_txt = "=hyperlink(\""+link+"\",\""+name+"\")"
+    description=file.getDescription();
+    Date_Created=file.getDateCreated();
+    id_=file.getId();
+    
+    var hashes_=DocumentApp.openByUrl(link).getBody().getText().match(/(?<!\w)#\w+/g);// these aren't unique
+    var hashes_=hashes_.map(name => name.toLowerCase());//all lowercase
+    var hashes_ = [...new Set(hashes_)]; //these are unique
+    var hashes_ = hashes_.sort(); // now they are sorted
+    
+    hashes_str=hashes_.join(' ');
+
+    var lvl = 0;
+
+    // add an ALL hashtags row
+    sheet.appendRow( [id_, name_link_formula_txt,hashes_str,Date_Created, lvl] );    
+    // add row for each hash tag
+    for(i=0;i<hashes_.length;i++){
+      hashes_str=hashes_[i];;
+      lvl = lvl+1;
+      sheet.appendRow( [id_, name_link_formula_txt,hashes_str,Date_Created, lvl] ); 
+    }
+
+
+  }
+};
