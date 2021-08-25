@@ -14,7 +14,7 @@ function listFolderContents() {
   var sheet = ss.getActiveSheet();
 
   sheet.clear();
-  sheet.appendRow( ['id','name', 'hashtag','Date_Created', 'lvl',"link"] );
+  sheet.appendRow( ['id','name', 'hashtag_list', 'Date_Created', 'hashtag', 'url', 'contributor', 'Difficulty'] );
   
   var file;
   var name;
@@ -24,7 +24,9 @@ function listFolderContents() {
   var id_;
   var hashes_;
   var hashes_str;
-  var lvl;
+  var contributors;
+  var docText;
+  var difficulty;
    
   while(contents.hasNext()) {
     file = contents.next();
@@ -35,23 +37,40 @@ function listFolderContents() {
     Date_Created=file.getDateCreated();
     id_=file.getId();
 
-    
-    var hashes_=DocumentApp.openByUrl(link).getBody().getText().match(/(?<!\w)#\w+/g);// these aren't unique
-    var hashes_=hashes_.map(name => name.toLowerCase());//all lowercase
-    var hashes_ = [...new Set(hashes_)]; //these are unique
-    var hashes_ = hashes_.sort(); // now they are sorted
+    var docText=DocumentApp.openByUrl(link).getBody().getText();// these aren't unique
+    if( docText.match('#') ){
+      var hashes_=docText.match(/(?<!\w)#\w+/g);// these aren't unique
+      //var hashes_=DocumentApp.openByUrl(link).getBody().getText().match(/(?<!\w)#\w+/g);// these aren't unique
+      var hashes_=hashes_.map(name => name.toLowerCase());//all lowercase
+      var hashes_ = [...new Set(hashes_)]; //these are unique
+      var hashes_ = hashes_.sort(); // now they are sorted
+    } else {
+      var hashes_=''
+    }
+
+    if( docText.match('@') ){
+    //var contributors=docText.match(/@[a-zA-Z]+/g);// get contributor @...
+    var contributors=docText.match(/@[a-zA-Z0-9]+/g).sort().join(', ');// get contributor @...
+    }  else {
+      var contributors=''
+    }
+
+    if( docText.match('\\[') & docText.match('\\]') ){
+    //var contributors=docText.match(/@[a-zA-Z]+/g);// get contributor @...
+    var difficulty=docText.match(/\[[a-zA-Z0-9]+\]/g).sort().join(', ').replace('[','').replace(']','');// get difficulty [...]...
+    }  else {
+      var difficulty=''
+    }
     
     hashes_str=hashes_.join(' ');
 
-    var lvl = 0;
-
     // add an ALL hashtags row?
-    //sheet.appendRow( [id_, name_link_formula_txt,hashes_str,Date_Created, lvl,link] );    
+    //sheet.appendRow( [id_, name_link_formula_txt,hashes_str,Date_Created, link, contributors, difficulty] );    
     // add row for each hash tag
     for(i=0;i<hashes_.length;i++){
       hashes_str=hashes_[i];;
-      lvl = lvl+1;
-      sheet.appendRow( [id_, name_link_formula_txt,hashes_str,Date_Created, lvl,link] ); 
+      sheet.appendRow( [id_, name_link_formula_txt,hashes_.join(' '),Date_Created, hashes_str, link, contributors, difficulty] ); 
+
     }
 
 
