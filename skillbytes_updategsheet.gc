@@ -1,21 +1,34 @@
+
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('refresh data')
+    .addItem('refresh', 'refreshAllData')
+    .addToUi();
+}
+
+function refreshAllData(){
+  listFolderContents();
+  getURLcounts();
+};
+
+
 function listFolderContents() {
   var foldername = 'SkillBytes';
   var folderlisting = 'listing of folder ' + foldername;
-  
+
   var folders = DriveApp.getFoldersByName(foldername)
   var folder = folders.next();
   var contents = folder.getFiles();
-  
-  var sheet_url="https://docs.google.com/spreadsheets/d/1lXwQPS2NYVa1C1WuUW-kYpVhIqBHs8njRrgo_aowSng/";
-  //var sheet_url="https://docs.google.com/spreadsheets/d/10Bvl-rYXiyE_bt2-KvCqnkaBO48WEi2WUGA0Kts_-fU/";
-  var ss = SpreadsheetApp.openByUrl(sheet_url)
-      
 
-  var sheet = ss.getActiveSheet();
+  var ss = SpreadsheetApp.getActiveSpreadsheet()
+
+
+  //var sheet = ss.getActiveSheet();
+  var sheet = ss.getSheetByName('Sheet1');
 
   sheet.clear();
-  sheet.appendRow( ['id','name', 'hashtag_list', 'date_dreated', 'hashtag', 'url', 'contributor', 'difficulty', 'domain'] );
-  
+  sheet.appendRow(['id', 'name', 'hashtag_list', 'date_dreated', 'hashtag', 'url', 'contributor', 'difficulty', 'domain']);
+
   var file;
   var name;
   var link;
@@ -29,40 +42,42 @@ function listFolderContents() {
   var difficulty = '';
   var domains_ = [];
   var domains_str = '';
-   
-  while(contents.hasNext()) {
+
+  while (contents.hasNext()) {
     file = contents.next();
     name = file.getName();
     link = file.getUrl();
-    name_link_formula_txt = "=hyperlink(\""+link+"\",\""+name+"\")"
-    description=file.getDescription();
-    Date_Created=file.getDateCreated();
-    id_=file.getId();
+    name_link_formula_txt = "=hyperlink(\"" + link + "\",\"" + name + "\")"
+    description = file.getDescription();
+    Date_Created = file.getDateCreated();
+    id_ = file.getId();
 
-    var docText=DocumentApp.openByUrl(link).getBody().getText();
+    var docText = DocumentApp.openByUrl(link).getBody().getText();
 
     // get hashtags
-    if( docText.match('#') ){
-      var hashes_=docText.match(/(?<!\w)#\w+/g);// these aren't unique
+    if (docText.match('#')) {
+      var hashes_ = docText.match(/(?<!\w)#\w+/g);// these aren't unique
       //var hashes_=DocumentApp.openByUrl(link).getBody().getText().match(/(?<!\w)#\w+/g);// these aren't unique
-      var hashes_=hashes_.map(name => name.toLowerCase());//all lowercase
+      var hashes_ = hashes_.map(name => name.toLowerCase());//all lowercase
 
       //########################################################################
       // START fix hash names
       // e.g. #colab and #colabnotebook could co-exist. So replace all to #colab then later just take distinct hashes
-      hash_clean_map = {'^#.*colab.*$':'#colab',
-      '^#ml$':'#machinelearning',
-      '^#.*tableau.*$':'#tableau',
-      '^#bq$':'#bigquery',
-      '^#gcp$':'#googlecloudplatform',
+      hash_clean_map = {
+        '^#.*colab.*$': '#colab',
+        '^#ml$': '#machinelearning',
+        '^#.*tableau.*$': '#tableau',
+        '^#bq$': '#bigquery',
+        '^#gcp$': '#googlecloudplatform',
       }
 
-      for(i=0;i<hashes_.length;i++){
-        for(key in hash_clean_map){
-        if(hashes_[i].match(key)){
-            hashes_[i]=hash_clean_map[key];
+      for (i = 0; i < hashes_.length; i++) {
+        for (key in hash_clean_map) {
+          if (hashes_[i].match(key)) {
+            hashes_[i] = hash_clean_map[key];
             break
-        }}
+          }
+        }
       }
       // END fix hash names
       //########################################################################
@@ -70,89 +85,175 @@ function listFolderContents() {
       var hashes_ = [...new Set(hashes_)]; //these are unique
       var hashes_ = hashes_.sort(); // now they are sorted
     } else {
-      var hashes_=['']
+      var hashes_ = ['']
     }
 
     // get contributor
-    if( docText.match('@') ){
-    //var contributors=docText.match(/@[a-zA-Z]+/g);// get contributor @...
-    var contributors=docText.match(/@[a-zA-Z0-9]+/g).sort().join(', ');// get contributor @...
-    }  else {
-      var contributors=''
+    if (docText.match('@')) {
+      var contributors = docText.match(/@[a-zA-Z0-9]+/g).sort().join(', ').toLowerCase();// get contributor @...
+    } else {
+      var contributors = ''
     }
 
     // get difficulty
-    if( docText.match('\\[') && docText.match('\\]') ){
-    //var contributors=docText.match(/@[a-zA-Z]+/g);// get contributor @...
-    var difficulty=docText.match(/\[[a-zA-Z0-9]+\]/g).sort().join(', ').replace('[','').replace(']','');// get difficulty [...]...
-    }  else {
-      var difficulty=''
+    if (docText.match('\\[') && docText.match('\\]')) {
+      var difficulty = docText.match(/\[[a-zA-Z0-9]+\]/g).sort().join(', ').replace('[', '').replace(']', '').toLowerCase();// get difficulty [...]...
+    } else {
+      var difficulty = ''
     }
-    
+
     //hashes_str=hashes_.join(' ');
-        
+
     //########################################################################
-      // START domain mapping
-      // e.g. #colab and #colabnotebook could co-exist. So replace all to #colab then later just take distinct hashes
-      domain_map = {
-      '^#appsscript$': 'Data',
-      '^#bigquery$': 'Tools',
-      '^#bq$': 'Tools',
-      '^#colab$': 'Tools',
-      '^#colabnotebook$': 'Tools',
-      '^#googlecolabnotebook$': 'Tools',
-      '^#googlecolab$': 'Tools',
-      '^#createtable$': 'Data',
-      '^#csv$': 'Data',
-      '^#dataframe$': 'Tools',
-      '^#dataingestion$': 'Techniques and Theory',
-      '^#dataviz$': 'Techniques and Theory',
-      '^#dplyr$': 'Techniques and Theory',
-      '^#function$': 'Techniques and Theory',
-      '^#gcp$': 'Data',
-      '^#googlecloudplatform$': 'Data',
-      '^#googlesheet$': 'Data',
-      '^#js$': 'Tools',
-      '^#linux$': 'Tools',
-      '^#listcomprehension$': 'Techniques and Theory',
-      '^#loops$': 'Techniques and Theory',
-      '^#machinelearning$': 'Techniques and Theory',
-      '^#ml$': 'Techniques and Theory',
-      '^#pandas$': 'Tools',
-      '^#pivot$': 'Data',
-      '^#python$': 'Tools',
-      '^#r$': 'Tools',
-      '^#shell$': 'Techniques and Theory',
-      '^#skillbyte$': 'Process and Frameworks',
-      '^#tableau$': 'Tools',
-      '^#vm$': 'Tools',
+    // START domain mapping
+    // e.g. #colab and #colabnotebook could co-exist. So replace all to #colab then later just take distinct hashes
+    domain_map = {
+      '#colab': 'Tools',
+      '#function': 'Techniques and Theory',
+      '#listcomprehension': 'Techniques and Theory',
+      '#loops': 'Techniques and Theory',
+      '#nosound': 'None',
+      '#objects': 'None',
+      '#python': 'Tools',
+      '#skillbyte': 'Process and Frameworks',
+      '#appsscript': 'Data',
+      '#chromse': 'None',
+      '#js': 'Tools',
+      '#bigquery': 'Tools',
+      '#googlecolab': 'Tools',
+      '#pivot': 'Data',
+      '#asmanyasyoucanthinkof': 'None',
+      '#template': 'None',
+      '#linux': 'Tools',
+      '#shell': 'Techniques and Theory',
+      '#vm': 'Tools',
+      '#dplyr': 'Techniques and Theory',
+      '#r': 'Tools',
+      '#tinker': 'None',
+      '#dataframe': 'Tools',
+      '#dataingestion': 'Techniques and Theory',
+      '#pandas': 'Tools',
+      '#googlesheet': 'Data',
+      '#gsheet': 'Data',
+      '#createtable': 'Data',
+      '#csv': 'Data',
+      '#dataviz': 'Techniques and Theory',
+      '#gcp': 'Data',
+      '#tableau': 'Tools',
+      '#colabnotebook': 'Tools',
+      '#machinelearning': 'Techniques and Theory',
+      '#googlecloudplatform': 'Tools',
+      '#parameterisedqueries' : 'Techniques and Theory',
+      '#sql': 'Techniques and Theory',
+      '#connectedsheets': 'Data',
+      '#containers': 'Tools',
+      '#regex': 'Techniques and Theory',
+      '#thirdparty': 'None',
+      '#datastudio': 'Tools',
+      '#probability' : 'Techniques and Theory',
+      '#vizzlo' : 'Tools'
+    }
 
-      '^.*colab.*$': 'Tools',
-      '^.*notebook.*$': 'Tools',
-      }
-
-      for(i=0;i<hashes_.length;i++){
-        domains_.push('None')
-        for(key in domain_map){
-        if(hashes_[i].match(key)){
-            domains_[i] = domain_map[key];
-            break
-        }
+    for (i = 0; i < hashes_.length; i++) {
+      domains_.push('none')
+      for (key in domain_map) {
+        if (hashes_[i].match(key)) {
+          domains_[i] = domain_map[key].toLowerCase();
+          break
         }
       }
-      // END domain mapping
-      //########################################################################
+    }
+    // END domain mapping
+    //########################################################################
 
 
     // add an ALL hashtags row?
     //sheet.appendRow( [id_, name_link_formula_txt,hashes_str,Date_Created, link, contributors, difficulty, domains_] );    
     // add row for each hash tag
-    for(i=0;i<hashes_.length;i++){
-      hashes_str=hashes_[i];
-      domains_str=domains_[i];
-      sheet.appendRow( [id_, name_link_formula_txt,hashes_.join(' '),Date_Created, hashes_str, link, contributors, difficulty, domains_str] ); 
+    for (i = 0; i < hashes_.length; i++) {
+      hashes_str = hashes_[i];
+      domains_str = domains_[i];
+      sheet.appendRow([id_, name_link_formula_txt, hashes_.join(' '), Date_Created, hashes_str, link, contributors, difficulty, domains_str]);
     }
 
 
   }
 };
+
+
+
+
+//############################################################################
+function getURLcounts() {
+  /**
+   * TODO(developer): Uncomment this variable and replace with your
+   *   Google Analytics 4 property ID before running the sample.
+   */
+  const propertyId = '285054607';
+
+  var metric = AnalyticsData.newMetric();
+  metric.name = 'eventCount';//'totalUsers'; totalUsers = count distinct users, eventCount = count times link used.
+
+  var dimension = AnalyticsData.newDimension();
+  dimension.name = 'linkUrl';
+
+  var dateRange = AnalyticsData.newDateRange();
+  dateRange.startDate = '2020-03-31';
+  dateRange.endDate = 'today';
+
+  var request = AnalyticsData.newRunReportRequest();
+  request.dimensions = [ dimension ];
+  request.metrics = [ metric ];
+  request.dateRanges = dateRange;
+
+  var report = AnalyticsData.Properties.runReport(request,
+                                                  'properties/' + propertyId);
+  if (report.rows) {
+    // var spreadsheet = SpreadsheetApp.create('Google Analytics Report');
+    // var sheet = spreadsheet.getActiveSheet();
+
+    var spreadsheet = SpreadsheetApp.getActiveSpreadsheet()
+    var sheet = spreadsheet.getSheetByName('traffic');
+    sheet.clear();
+
+    // Append the headers.
+    var dimensionHeaders = report.dimensionHeaders.map(
+      function(dimensionHeader) {
+        return dimensionHeader.name;
+    });
+    var metricHeaders = report.metricHeaders.map(
+      function(metricHeader) {
+        return metricHeader.name;
+    });
+    var headers = [ ...dimensionHeaders, ...metricHeaders];
+
+    sheet.appendRow(headers);
+
+    // Append the results.
+    var rows = report.rows.map( function(row) {
+      var dimensionValues = row.dimensionValues.map(
+        function(dimensionValue) {
+          return dimensionValue.value;
+      });
+      var metricValues = row.metricValues.map(
+        function(metricValues) {
+          return metricValues.value;
+      });
+      return [ ...dimensionValues, ...metricValues];
+    });
+
+    sheet.getRange(2, 1, report.rows.length, headers.length)
+        .setValues(rows);
+
+    var values = [[ "url", "Hits" ]];
+    var range = sheet.getRange("A1:B1");
+    range.setValues(values);
+
+  Logger.log('Report spreadsheet created: %s',
+          spreadsheet.getUrl());
+  } else {
+    Logger.log('No rows returned.');
+  }
+      
+};
+
